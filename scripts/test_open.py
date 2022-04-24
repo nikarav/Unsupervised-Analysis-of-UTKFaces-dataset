@@ -30,7 +30,7 @@ current_index=0
 
 ## Create the binary. Open it in append mode
 
-k = 4000
+k = 100
 X = np.empty((k,h*w))
 
 
