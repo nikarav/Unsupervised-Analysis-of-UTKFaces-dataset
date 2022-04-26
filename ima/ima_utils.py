@@ -1,6 +1,18 @@
 import numpy as np
 import pandas as pd
 import skimage
+import matplotlib.pyplot as plt
+
+
+def plot_image(vector, height, width, cmap=None):
+    dims = len(vector.shape)
+    if dims == 3:
+        plt.imshow(vector.reshape(height, width, 3))
+        return
+    if cmap is None:
+        plt.imshow(vector.reshape(height, width))
+    else:
+        plt.imshow(vector.reshape(height, width), cmap=cmap)
 
 
 def get_dimensions_from_an_image(faces_path, image_no=0, as_gray=True):
