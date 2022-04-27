@@ -4,15 +4,29 @@ import skimage
 import matplotlib.pyplot as plt
 
 
-def plot_image(vector, height, width, cmap=None):
+def plot_image(vector, height, width, cmap='gray'):
     dims = len(vector.shape)
     if dims == 3:
         plt.imshow(vector.reshape(height, width, 3))
         return
-    if cmap is None:
-        plt.imshow(vector.reshape(height, width))
-    else:
-        plt.imshow(vector.reshape(height, width), cmap=cmap)
+    plt.imshow(vector.reshape(height, width), cmap=cmap)
+
+
+def plot_2d_with_labels(X_df, label_df, components=[0, 1], decomposition_method=''):
+    import seaborn as sns
+    if len(components) > 2:
+        print('It is a 2d plot. Only 2 components required')
+        return
+    df = pd.DataFrame(
+        data=X_df.loc[:, [components[0], components[1]]], index=X_df.index)
+    df = pd.concat((df, label_df), axis=1, join='inner')
+    df.columns = [f'Comp. {components[0]+1} vector',
+                  f'Comp. {components[1]+1} vector',
+                  f'{label_df.columns.to_list()[0]}']
+    sns.lmplot(x=df.columns.to_list()[0], y=df.columns.to_list()[1],
+               hue=df.columns.to_list()[2], data=df, fit_reg=False)
+    ax = plt.gca()
+    ax.set_title('Observations using ' + decomposition_method)
 
 
 def get_dimensions_from_an_image(faces_path, image_no=0, as_gray=True):
