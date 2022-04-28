@@ -46,10 +46,21 @@ def pick_n_from_label(df, n, label, random_state=0, shuffle=True):
     Returns list of image names to load.
     n: int, Number of elements from each label
     label: string, Column from the pandas object to pick from its elements
+    If label == 'random', then n random images are loaded
     '''
     labels = df.copy()
     lbl = label.lower()
     image_names_to_load = []
+    if lbl == 'random':
+        indices = labels.index.to_list()
+        if shuffle:
+            np.random.seed(random_state)
+            np.random.shuffle(indices)
+        try:
+            image_names_to_load += indices[:n]
+        except IndexError:
+            image_names_to_load += indices
+        return image_names_to_load
     for i in labels[lbl].unique():
         indices = labels[labels[lbl] == i].index.to_list()
         if shuffle:

@@ -43,7 +43,7 @@ age_min = 18
 age_max = 75
 labels_limited = labels.loc[(labels.age > age_min) & (labels.age < age_max)]
 
-n_elements_from_label = 1500
+n_elements_from_label = 2000
 label_to_choose_from = "gender"
 images_to_load = ima_utils.pick_n_from_label(
     labels_limited, n_elements_from_label, label_to_choose_from, shuffle=_SHUFFLE
@@ -80,16 +80,16 @@ X_female_train, X_female_test = train_test_split(
 
 del X_male, X_female
 
-pca_male = PCA(n_components=0.99)
+pca_male = PCA(n_components=500)
 X_male_transf = pca_male.fit_transform(X_male_train)
 v_male = pca_male.components_.T
 
-pca_female = PCA(n_components=0.99)
+pca_female = PCA(n_components=500)
 X_female_transf = pca_female.fit_transform(X_female_train)
 v_female = pca_female.components_.T
 
 
-test_k = 15
+test_k = 2
 test_male = X_male_test[test_k]
 transformed_to_female = ((test_male - pca_male.mean_) @ v_female).dot(
     v_female.T

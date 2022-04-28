@@ -1,7 +1,7 @@
 from pickletools import uint8
 import ima_utils
 import sklearn.preprocessing as preproc
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, KFold
 from sklearn.decomposition import PCA, FastICA, NMF, DictionaryLearning, IncrementalPCA
 import scipy.linalg as lng
 import pandas as pd
@@ -10,7 +10,8 @@ import matplotlib.pyplot as plt
 from skimage import io, img_as_ubyte
 from tqdm import tqdm
 import os
-
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC
 
 # Globals
 _SHUFFLE = True
@@ -38,8 +39,8 @@ labels['age_bin'] = ages
 h, w = ima_utils.get_dimensions_from_an_image(faces_path, 0, as_gray=True)
 
 
-n_elements_from_label = 1000
-label_to_choose_from = "gender"
+n_elements_from_label = 2000
+label_to_choose_from = "random"
 images_to_load = ima_utils.pick_n_from_label(
     labels, n_elements_from_label, label_to_choose_from, shuffle=_SHUFFLE
 )
@@ -55,28 +56,77 @@ labels_loaded = labels.loc[images_to_load]
 labels_loaded = labels_loaded.reset_index()
 
 
-# # pca = IncrementalPCA(n_components=400, batch_size=400)
-# pca = PCA(n_components=400)
-# pca.fit(X)
+k_folds = 5
+cv = KFold(n_splits=k_folds)
 
-# X_transf = pca.transform(X)
+y_age = labels_loaded.age_bin.values
+y_race = labels_loaded.race.values
+y_gender = labels_loaded.gender.values
 
-
-# X_transf = pd.DataFrame(data=X_transf, index=labels_loaded.index)
-# y_df = labels_loaded[[label_to_choose_from]]
-
-# ima_utils.plot_2d_with_labels(X_transf, y_df, decomposition_method='PCA')
-
-
-ica = FastICA(n_components=25)
-ica.fit(X)
-
-X_transf = ica.transform(X)
-X_transf = pd.DataFrame(data=X_transf, index=labels_loaded.index)
-y_df = labels_loaded[[label_to_choose_from]]
-
-ima_utils.plot_2d_with_labels(X_transf, y_df, components=[
-                              0, 3], decomposition_method='PCA')
+############################################################
+from sklearn.pipeline import Pipeline
+from sklearn.model_selection import GridSearchCV
 
 
-v = ica.components_.T
+n_components = [  200, 400, 500]
+n_neighbors = [2,5,10]
+
+
+pca_clf = Pipeline([
+    ('decomp', PCA()),
+    ('clf', KNeighborsClassifier())
+])
+
+param_grid = {
+    'decomp__n_components': n_components,
+    'clf__n_neighbors': n_neighbors
+}
+
+grid_search = GridSearchCV(pca_clf,param_grid=param_grid,cv=k_folds,verbose=2)
+grid_search.fit(X,y_age)
+
+#############################################################
+
+acc_age = np.empty((k_folds, len(n_components)))
+acc_race = np.empty((k_folds, len(n_components)))
+acc_gender = np.empty((k_folds, len(n_components)))
+
+acc_age_no = np.empty(k_folds)
+acc_race_no = np.empty(k_folds)
+acc_gender_no = np.empty(k_folds)
+
+clf = KNeighborsClassifier(n_neighbors=n_neighbors)
+# clf = SVC()
+for i, (train_idx, test_idx) in enumerate(cv.split(X, y_age)):
+    y_age_train, y_age_test = y_age[train_idx], y_age[test_idx]
+    y_race_train, y_race_test = y_race[train_idx], y_race[test_idx]
+    y_gender_train, y_gender_test = y_gender[train_idx], y_gender[test_idx]
+
+    X_train, X_test = X[train_idx, :], X[test_idx, :]
+
+    clf.fit(X_train, y_age_train)
+    acc_age_no[i] = clf.score(X_test, y_age_test)
+    clf.fit(X_train, y_race_train)
+    acc_race_no[i] = clf.score(X_test, y_race_test)
+    clf.fit(X_train, y_gender_train)
+    acc_gender_no[i] = clf.score(X_test, y_gender_test)
+
+    for j, n_comp in tqdm(enumerate(n_components)):
+        pca = PCA(n_components=n_comp, copy=True)
+        X_train_transf = pca.fit_transform(X_train)
+        X_test_transf = pca.transform(X_test)
+        clf.fit(X_train_transf, y_age_train)
+        acc_age[i, j] = clf.score(X_test_transf, y_age_test)
+        clf.fit(X_train_transf, y_race_train)
+        acc_race[i, j] = clf.score(X_test_transf, y_race_test)
+        clf.fit(X_train_transf, y_gender_train)
+        acc_gender[i, j] = clf.score(X_test_transf, y_gender_test)
+
+
+idx_age = np.argmax(acc_age.mean(axis=0))
+idx_race = np.argmax(acc_race.mean(axis=0))
+idx_gender = np.argmax(acc_gender.mean(axis=0))
+
+n_components_age = n_components[idx_age]
+n_components_race = n_components[idx_race]
+n_components_gender = n_components[idx_gender]
