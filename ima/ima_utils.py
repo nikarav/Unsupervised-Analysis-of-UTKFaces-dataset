@@ -2,6 +2,8 @@ import numpy as np
 import pandas as pd
 import skimage
 import matplotlib.pyplot as plt
+from sklearn import metrics
+import scipy.linalg as lng
 
 
 def plot_image(vector, height, width, cmap='gray'):
@@ -115,3 +117,15 @@ def read_images_from_npy(npy_data_path, image_list_to_load):
     X = np.load(npy_data_path)
     X = X[image_list_to_load]
     return X
+
+
+def get_decomposition_variance_score(decomposition_fitted, data_set, score_method=metrics.explained_variance_score):
+    prediction = decomposition_fitted.inverse_transform(
+        decomposition_fitted.transform(data_set))
+    return score_method(data_set, prediction)
+
+
+def get_decomposition_reconstruction_error_score(decomposition_fitted, data_set):
+    prediction = decomposition_fitted.inverse_transform(
+        decomposition_fitted.transform(data_set))
+    return 0.5*lng.norm(data_set-prediction)**2
