@@ -97,3 +97,21 @@ def get_labels_df(labels_path, names_path=None):
     cols = cols[-1:] + cols[-2:-1] + cols[:3]
     labels = labels[cols]
     return labels
+
+
+def read_selected_images(images_folder_path, image_list_to_load, height, width, as_gray=True):
+    from tqdm import tqdm
+    from skimage import io, img_as_ubyte
+    X = np.empty((len(image_list_to_load), height * width), dtype=np.ubyte)
+    for i in tqdm(range(len(image_list_to_load))):
+        a = io.imread(images_folder_path +
+                      f"{image_list_to_load[i]}.jpg", as_gray=as_gray)
+        a = img_as_ubyte(a)
+        X[i, :] = a.reshape(1, -1)
+    return X
+
+
+def read_images_from_npy(npy_data_path, image_list_to_load):
+    X = np.load(npy_data_path)
+    X = X[image_list_to_load]
+    return X
