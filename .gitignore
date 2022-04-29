@@ -1,6 +1,7 @@
 ima/data_gray.npy
 ima/data_rgb.npy
 ima/data_labels.csv
+ima/__pycache__
 data/
 .DS_Store
 .ipynb_checkpoints/
