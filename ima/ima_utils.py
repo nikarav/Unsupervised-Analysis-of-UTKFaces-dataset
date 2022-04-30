@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-import skimage
+from skimage import io, img_as_ubyte
 import matplotlib.pyplot as plt
 from sklearn import metrics
 import scipy.linalg as lng
@@ -35,7 +35,7 @@ def get_dimensions_from_an_image(faces_path, image_no=0, as_gray=True):
     '''
     Returns 2 integers, height (h) and width (w) as dimensions of an image
     '''
-    test_img = skimage.io.imread(faces_path+f"{image_no}.jpg", as_gray=as_gray)
+    test_img = io.imread(faces_path+f"{image_no}.jpg", as_gray=as_gray)
     if as_gray:
         h, w = test_img.shape
         return h, w
@@ -128,4 +128,17 @@ def get_decomposition_variance_score(decomposition_fitted, data_set, score_metho
 def get_decomposition_reconstruction_error_score(decomposition_fitted, data_set):
     prediction = decomposition_fitted.inverse_transform(
         decomposition_fitted.transform(data_set))
-    return 0.5*lng.norm(data_set-prediction)**2
+    return lng.norm(data_set-prediction)**2 / lng.norm(data_set)**2
+
+
+def get_masked_reconstruction_error(decomposition_fitted, data_set, masked_data_set, mask_matrix):
+    reconstructed_data_set = decomposition_fitted.inverse_transform(
+        decomposition_fitted.transform(masked_data_set))
+    M = (np.ones(mask_matrix.shape) - mask_matrix)
+    dif = np.matmul(M, (data_set-reconstructed_data_set))
+    return lng.norm(dif)**2/lng.norm(np.matmul(M, (data_set)))**2
+
+
+def classification_error(y_test, y_hat):
+    n_test = len(y_test)
+    return np.sum(y_hat != y_test)/n_test

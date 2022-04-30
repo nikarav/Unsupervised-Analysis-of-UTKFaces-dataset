@@ -1,3 +1,5 @@
+from sklearn.cluster import KMeans
+from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import train_test_split, KFold, StratifiedKFold
 from sklearn.decomposition import PCA
 import numpy as np
@@ -29,9 +31,9 @@ labels = pd.DataFrame(data=labels.values, columns=labels_columns)
 # print(labels.info())
 
 # Print count of unique values for each label
-print(f"Gender:\n{labels.gender.value_counts()}")
-print()
-print(f"Race:\n{labels.race.value_counts()}")
+# print(f"Gender:\n{labels.gender.value_counts()}")
+# print()
+# print(f"Race:\n{labels.race.value_counts()}")
 
 # If we want to ignore the "other" or 4, race values, run the following
 # We can ignore them in the grounds of the sample being smaller than the others.
@@ -78,7 +80,7 @@ test_img = io.imread(faces_path+f"{test_img_name}.jpg", as_gray=True)
 h, w = test_img.shape
 del test_img
 
-n_elements_from_label = 300
+n_elements_from_label = 250
 label_to_choose_from = 'race'
 
 images_to_load = pick_n_from_label(n_elements_from_label, label_to_choose_from)
@@ -94,7 +96,7 @@ for i in range(len(images_to_load)):
     a = io.imread(faces_path+f"{images_to_load[i]}.jpg", as_gray=True)
     a = img_as_ubyte(a)
     X[i, :] = a.reshape(1, -1)
-    a = resize(a, (h_c, w_c))
+    a = resize(a, (h_c, w_c), anti_aliasing=True)
     X_c[i, :] = a.reshape(1, -1)
 
 del a
@@ -107,40 +109,90 @@ labels_loaded = labels.loc[images_to_load]
 y = labels_loaded['race'].values
 
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=_SEED)
-X_c_train, X_c_test, _, _ = train_test_split(X, y, random_state=_SEED)
+# X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=_SEED)
+# X_c_train, X_c_test, _, _ = train_test_split(X_c, y, random_state=_SEED)
 
-pca = PCA(n_components=0.95, random_state=_SEED)
+# pca = PCA(n_components=0.95, random_state=_SEED)
 
-X_train_pca = pca.fit_transform(X_train/255.)
-X_test_pca = pca.transform(X_test/255.)
+# X_train_pca = pca.fit_transform(X_train/255.)
+# X_test_pca = pca.transform(X_test/255.)
 
-X_c_train_pca = pca.fit_transform(X_c_train/255.)
-X_c_test_pca = pca.transform(X_c_test/255.)
+# X_c_train_pca = pca.fit_transform(X_c_train/255.)
+# X_c_test_pca = pca.transform(X_c_test/255.)
 
 
-scaler = preproc.StandardScaler()
-X_train = scaler.fit_transform(X_train/255.)
-X_test = scaler.transform(X_test/255.)
+# scaler = preproc.StandardScaler()
+# X_train = scaler.fit_transform(X_train/255.)
+# X_test = scaler.transform(X_test/255.)
 
-X_c_train = scaler.fit_transform(X_c_train/255.)
-X_test = scaler.transform(X_c_test/255.)
+# X_c_train = scaler.fit_transform(X_c_train/255.)
+# X_c_test = scaler.transform(X_c_test/255.)
 
-classif = LogisticRegression()
+# classif = LogisticRegression()
 
-classif.fit(X_train, y_train)
-scores_200 = classif.score(X_test, y_test)
+# classif.fit(X_train, y_train)
+# scores_200 = classif.score(X_test, y_test)
 
-classif.fit(X_c_train, y_train)
-scores_100 = classif.score(X_c_test, y_test)
+# classif.fit(X_c_train, y_train)
+# scores_100 = classif.score(X_c_test, y_test)
 
-classif.fit(X_train_pca, y_train)
-scores_200_pca = classif.score(X_test_pca, y_test)
+# classif.fit(X_train_pca, y_train)
+# scores_200_pca = classif.score(X_test_pca, y_test)
 
-classif.fit(X_c_train_pca, y_train)
-scores_100_pca = classif.score(X_c_test_pca, y_test)
+# classif.fit(X_c_train_pca, y_train)
+# scores_100_pca = classif.score(X_c_test_pca, y_test)
 
-plt.subplot(1, 2, 1)
-plt.imshow(X[0, :].reshape(h, w), cmap='gray')
-plt.subplot(1, 2, 2)
-plt.imshow(X_c[0, :].reshape(h_c, w_c), cmap='gray')
+# print(f"Original images: {scores_200}")
+# print(f"Original images PCA: {scores_200_pca}")
+# print(f"Cropped images: {scores_100}")
+# print(f"Cropped images PCA: {scores_100_pca}")
+
+# plt.subplot(1, 2, 1)
+# plt.imshow(X[0, :].reshape(h, w), cmap='gray')
+# plt.subplot(1, 2, 2)
+# plt.imshow(X_c[0, :].reshape(h_c, w_c), cmap='gray')
+
+lambdas = np.linspace(0.1, 10)
+
+param_grid = {
+    'C': 1/lambdas
+}
+
+
+k_outer = 5
+k_inner = 5
+cv_outer = KFold(n_splits=k_outer, shuffle=True, random_state=_SEED)
+n_comps = np.arange(0.05, 1+0.05, 0.05)
+best_estimators = []
+
+accuracies_pca = np.empty((k_outer, len(n_comps)))
+accuracies = np.empty(k_outer)
+for i, (train_idx, test_idx) in enumerate(cv_outer.split(X, y)):
+    print(f'outer cv loop: {i+1}/{k_outer}')
+    y_train, y_test = y[train_idx], y[test_idx]
+    X_train, X_test = X[train_idx, :], X[test_idx, :]
+
+    clf = GridSearchCV(LogisticRegression(), param_grid=param_grid, verbose=2)
+    clf.fit(X_train, y_train)
+    best_estimators.append(clf.best_estimator_)
+
+    accuracies[i] = clf.best_estimator_.score(X_test, y_test)
+
+    for j, comp in enumerate(n_comps):
+        pca = PCA(n_components=comp, random_state=_SEED)
+        X_train_pca = pca.fit_transform(X_train)
+        X_test_pca = pca.transform(X_test)
+
+        clf.best_estimator_.fit(X_train_pca, y_train)
+        accuracies_pca[i, j] = clf.best_estimator_.score(X_test_pca, y_test)
+
+
+idx_pca = np.argmax(accuracies_pca.mean(0))
+n_comps_opt = n_comps[idx_pca]
+
+
+kmeans = KMeans(n_clusters=5, verbose=2)
+y_pred = kmeans.fit_predict(X)
+
+idx0 = np.where(y_pred == 0)
+races0 = labels.iloc[idx0].race
