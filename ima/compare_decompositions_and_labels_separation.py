@@ -1,3 +1,6 @@
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import GridSearchCV
+from sklearn.pipeline import Pipeline
 from pickletools import uint8
 import ima_utils
 import sklearn.preprocessing as preproc
@@ -64,26 +67,25 @@ y_race = labels_loaded.race.values
 y_gender = labels_loaded.gender.values
 
 ############################################################
-from sklearn.pipeline import Pipeline
-from sklearn.model_selection import GridSearchCV
 
 
-n_components = [  200, 400, 500]
-n_neighbors = [2,5,10]
+n_components = [350, 400, 450, 500, 550]
+n_neighbors = [5, 10, 15, 20]
 
 
 pca_clf = Pipeline([
     ('decomp', PCA()),
-    ('clf', KNeighborsClassifier())
+    ('clf', RandomForestClassifier())
 ])
 
 param_grid = {
     'decomp__n_components': n_components,
-    'clf__n_neighbors': n_neighbors
+    # 'clf__n_neighbors': n_neighbors
 }
 
-grid_search = GridSearchCV(pca_clf,param_grid=param_grid,cv=k_folds,verbose=2)
-grid_search.fit(X,y_age)
+grid_search = GridSearchCV(
+    pca_clf, param_grid=param_grid, cv=k_folds, verbose=2)
+grid_search.fit(X, y_age)
 
 #############################################################
 
