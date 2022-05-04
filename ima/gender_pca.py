@@ -39,23 +39,26 @@ h, w = ima_utils.get_dimensions_from_an_image(faces_path, 0, as_gray=True)
 
 
 # Limit images to choose from using some criterion
-age_min = 18
-age_max = 75
+age_min = 20
+age_max = 40
 labels_limited = labels.loc[(labels.age > age_min) & (labels.age < age_max)]
 
-n_elements_from_label = 2000
+n_elements_from_label = 4000
 label_to_choose_from = "gender"
 images_to_load = ima_utils.pick_n_from_label(
     labels_limited, n_elements_from_label, label_to_choose_from, shuffle=_SHUFFLE
 )
 
-X = np.empty((len(images_to_load), h * w), dtype=np.ubyte)
+# X = np.empty((len(images_to_load), h * w), dtype=np.ubyte)
 
-for i in tqdm(range(len(images_to_load))):
-    a = io.imread(faces_path + f"{images_to_load[i]}.jpg", as_gray=True)
-    a = img_as_ubyte(a)
-    X[i, :] = a.reshape(1, -1)
-del a
+# for i in tqdm(range(len(images_to_load))):
+#     a = io.imread(faces_path + f"{images_to_load[i]}.jpg", as_gray=True)
+#     a = img_as_ubyte(a)
+#     X[i, :] = a.reshape(1, -1)
+# del a
+
+X = np.load(data_set_gray_npy)[images_to_load]
+
 labels_loaded = labels.loc[images_to_load]
 labels_loaded = labels_loaded.reset_index()
 
@@ -80,16 +83,16 @@ X_female_train, X_female_test = train_test_split(
 
 del X_male, X_female
 
-pca_male = PCA(n_components=500)
+pca_male = IncrementalPCA(n_components=500, batch_size=500)
 X_male_transf = pca_male.fit_transform(X_male_train)
 v_male = pca_male.components_.T
 
-pca_female = PCA(n_components=500)
+pca_female = IncrementalPCA(n_components=500, batch_size=500)
 X_female_transf = pca_female.fit_transform(X_female_train)
 v_female = pca_female.components_.T
 
 
-test_k = 2
+test_k = 47
 test_male = X_male_test[test_k]
 transformed_to_female = ((test_male - pca_male.mean_) @ v_female).dot(
     v_female.T
@@ -98,8 +101,24 @@ reconstructed_male = ((test_male - pca_male.mean_) @ v_male).dot(
     v_male.T
 ) + pca_male.mean_
 
+test_female = X_female_test[test_k]
+transformed_to_male = ((test_female - pca_female.mean_) @ v_male).dot(
+    v_male.T
+) + pca_male.mean_
+reconstructed_female = ((test_female - pca_female.mean_) @ v_female).dot(
+    v_female.T
+) + pca_female.mean_
+
+
 plt.figure()
 plt.subplot(1, 2, 1)
-ima_utils.plot_image(reconstructed_male, h, w)
+ima_utils.plot_image(test_male, h, w)
 plt.subplot(1, 2, 2)
 ima_utils.plot_image(transformed_to_female, h, w)
+
+
+plt.figure()
+plt.subplot(1, 2, 1)
+ima_utils.plot_image(test_female, h, w)
+plt.subplot(1, 2, 2)
+ima_utils.plot_image(transformed_to_male, h, w)
