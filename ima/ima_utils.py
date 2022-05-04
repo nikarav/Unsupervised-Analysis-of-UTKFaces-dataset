@@ -142,3 +142,48 @@ def get_masked_reconstruction_error(decomposition_fitted, data_set, masked_data_
 def classification_error(y_test, y_hat):
     n_test = len(y_test)
     return np.sum(y_hat != y_test)/n_test
+
+
+def break_labels(labels):
+    '''
+    Get the labels for the faces data set broken down to gender, race and age (bin) data sets
+    argument labels is a pandas dataframe
+    '''
+    genders = ['male', 'female']
+    races = ['white', 'black', 'asian', 'indian', 'other']
+    ages = ['young', 'youngish', 'middle', 'old']
+    labels_str_returned = {}
+    labels_tuple_returned = {}
+    i = 1
+    for gender_i in labels.gender.unique():
+        labels_gender = labels.loc[labels.gender == gender_i]
+        for race_i in labels.race.unique():
+            labels_gender_race = labels_gender.loc[labels_gender.race == race_i]
+            for age_bin_i in labels.age_bin.unique():
+                labels_gender_race_age_bin = labels_gender_race.loc[
+                    labels_gender_race.age_bin == age_bin_i]
+                labels_str_returned[f"{genders[gender_i]}_{races[race_i]}_{ages[age_bin_i]}"] = labels_gender_race_age_bin
+                labels_tuple_returned[gender_i, race_i,
+                                      age_bin_i] = labels_gender_race_age_bin
+    return labels_str_returned, labels_tuple_returned
+
+
+def get_vector_from_img(img_number, faces_path, labels):
+    test_number = img_number
+    if test_number >= labels.shape[0]:
+        test_number = labels.shape[0]-1
+    im_number = labels.loc[test_number].image_no
+    a = io.imread(faces_path+f'{im_number}.jpg', as_gray=True)
+    a = img_as_ubyte(a).reshape(1, -1)
+    return a
+
+
+def get_image_labels(image_number, labels):
+    number = image_number
+    if number >= labels.shape[0]:
+        number = labels.shape[0]-1
+    image_number = labels.loc[number].image_no
+    gender = labels.loc[number].gender
+    age_bin = labels.loc[number].age_bin
+    race = labels.loc[number].race
+    return (gender, race, age_bin, image_number)
